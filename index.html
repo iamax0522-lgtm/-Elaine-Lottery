@@ -14,7 +14,7 @@ let weights=new Map(), disabled=new Set(), history=[], spinning=false, angle=0;
 const canvas=document.getElementById('wheel'),ctx=canvas.getContext('2d'),spinBtn=document.getElementById('spinBtn');
 
 function getRange(){
- let min=parseInt(document.getElementById('rangeMin').value)||1,max=parseInt(document.getElementById('rangeMax').value)||46;
+ let min=parseInt(document.getElementById('rangeMin').value)||1,max=parseInt(document.getElementById('rangeMax').value)||100;
  min=Math.max(1,Math.floor(min));max=Math.max(1,Math.floor(max));if(min>max)[min,max]=[max,min];
  document.getElementById('rangeMin').value=min;document.getElementById('rangeMax').value=max;return{min,max};
 }
