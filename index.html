@@ -9,78 +9,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰是天選之人？｜抽籤轉盤</title>
-<script>
-let weights=new Map(), disabled=new Set(), history=[], spinning=false, angle=0;
-const canvas=document.getElementById('wheel'),ctx=canvas.getContext('2d'),spinBtn=document.getElementById('spinBtn');
 
-function getRange(){
- let min=parseInt(document.getElementById('rangeMin').value)||1,max=parseInt(document.getElementById('rangeMax').value)||100;
- min=Math.max(1,Math.floor(min));max=Math.max(1,Math.floor(max));if(min>max)[min,max]=[max,min];
- document.getElementById('rangeMin').value=min;document.getElementById('rangeMax').value=max;return{min,max};
-}
-function getExcluded(){return new Set((document.getElementById('excludeNums').value.match(/\d+/g)||[]).map(Number).filter(Number.isSafeInteger).filter(n=>n>=1));}
-function weightOf(n){return weights.get(n)||1}
-function activeEntries(){
- const{min,max}=getRange(),ex=getExcluded(),a=[];
- if(max-min+1>200000)return a;
- for(let n=min;n<=max;n++){if(!disabled.has(n)&&!ex.has(n)){for(let k=0;k<Math.min(weightOf(n),1000);k++)a.push(n)}if(n===Number.MAX_SAFE_INTEGER)break}
- return a;
-}
-function drawWheel(){
- const entries=activeEntries();ctx.clearRect(0,0,700,700);
- if(!entries.length){ctx.beginPath();ctx.arc(350,350,315,0,Math.PI*2);ctx.fillStyle="#eceff1";ctx.fill();ctx.fillStyle="#78909c";ctx.font="bold 30px sans-serif";ctx.textAlign="center";ctx.fillText("號碼範圍很大／沒有可顯示的號碼",350,360);updateStatus();return}
- const r=315,cx=350,cy=350,step=Math.PI*2/entries.length,palette=["#fffaf0","#f6c9c9","#ffe16a","#a8d7cd"];
- ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
- for(let i=0;i<entries.length;i++){const a0=i*step,a1=(i+1)*step;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r,a0,a1);ctx.closePath();ctx.fillStyle=palette[i%4];ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();ctx.save();ctx.rotate((a0+a1)/2);ctx.textAlign="right";ctx.fillStyle="#263238";const fs=entries.length>70?15:entries.length>45?18:22;ctx.font=`900 ${fs}px sans-serif`;ctx.fillText(entries[i],r-14,fs/3);ctx.restore()}
- ctx.restore();ctx.beginPath();ctx.arc(cx,cy,315,0,Math.PI*2);ctx.strokeStyle="#3949ab";ctx.lineWidth=7;ctx.stroke();updateStatus();
-}
-function updateStatus(){
- const{min,max}=getRange(),ex=getExcluded(),span=max-min+1;let unique=span,total=span;
- for(const n of disabled)if(n>=min&&n<=max)unique--;
- for(const n of ex)if(n>=min&&n<=max)unique--;
- if(span<=200000){total=0;for(let n=min;n<=max;n++){if(!disabled.has(n)&&!ex.has(n))total+=Math.min(weightOf(n),1000);if(n===Number.MAX_SAFE_INTEGER)break}}
- document.getElementById('status').innerHTML=`範圍 <b>${min}～${max}</b>｜剩餘 <b>${Math.max(0,unique)}</b> 個不同號碼｜轉盤籤數 <b>${total}</b>`;
- renderGrid();
-}
-function renderGrid(){
- const g=document.getElementById('numberGrid');g.innerHTML='';const{min,max}=getRange();
- if(max-min+1>5000){g.innerHTML='<div class="small">範圍超過 5000 號，完整名單不展開，但仍可正常抽籤。</div>';return}
- for(let i=min;i<=max;i++){const d=document.createElement('div');d.className='num'+(disabled.has(i)?' used':'')+(weightOf(i)>1&&!disabled.has(i)?' multi':'');d.textContent=disabled.has(i)?`${i} ✓`:`${i}${weightOf(i)>1?' ×'+weightOf(i):''}`;g.appendChild(d)}
-}
-function pickOne(){
- const{min,max}=getRange(),ex=getExcluded(),span=max-min+1;
- if(span<=200000){
-  const pool=[];for(let n=min;n<=max;n++){if(!disabled.has(n)&&!ex.has(n))for(let k=0;k<Math.min(weightOf(n),1000);k++)pool.push(n);if(n===Number.MAX_SAFE_INTEGER)break}
-  return pool.length?pool[Math.floor(Math.random()*pool.length)]:null;
- }
- for(let i=0;i<10000;i++){const n=Math.floor(Math.random()*span)+min;if(!disabled.has(n)&&!ex.has(n))return n}
- return null;
-}
-function spin(){
- if(spinning)return;const count=Math.max(1,Math.floor(parseInt(document.getElementById('drawCount').value)||1));const{min,max}=getRange(),ex=getExcluded();let unique=max-min+1;
- for(const n of disabled)if(n>=min&&n<=max)unique--;for(const n of ex)if(n>=min&&n<=max)unique--;
- if(unique<=0){alert('已經沒有可抽的號碼，請重置。');return}
- if(document.getElementById('removeDrawn').checked&&count>unique){alert(`目前只剩 ${unique} 個不同號碼，無法一次抽 ${count} 個。`);return}
- spinning=true;spinBtn.disabled=true;const picks=[];
- for(let k=0;k<count;k++){const n=pickOne();if(n===null)break;picks.push(n);if(document.getElementById('removeDrawn').checked)disabled.add(n)}
- if(!picks.length){spinning=false;spinBtn.disabled=false;return}
- const visual=activeEntries(),vc=Math.max(1,visual.length),ti=Math.floor(Math.random()*vc),step=Math.PI*2/vc,desired=-Math.PI/2-(ti+.5)*step;let delta=desired-angle;while(delta<0)delta+=Math.PI*2;delta+=Math.PI*2*(5+Math.random()*3);
- const st=angle,en=angle+delta,dur=2600,t0=performance.now();
- function anim(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,4);angle=st+(en-st)*e;drawWheel();if(p<1)requestAnimationFrame(anim);else{spinning=false;spinBtn.disabled=false;document.getElementById('center').textContent=picks[0];document.getElementById('result').textContent=picks.join('　→　');document.getElementById('winNumber').textContent=picks.join('、');const o=document.getElementById('winOverlay');o.classList.add('show');setTimeout(()=>o.classList.remove('show'),1800);history.unshift(picks);renderHistory();drawWheel()}}
- requestAnimationFrame(anim);
-}
-function renderHistory(){const h=document.getElementById('history');h.innerHTML=history.length?history.map((x,i)=>`<div class="history-item"><b>第 ${history.length-i} 次</b>　${x.join('、')}</div>`).join(''):'<div class="small">尚無紀錄</div>'}
-document.getElementById('addBtn').onclick=()=>{const{min,max}=getRange(),nums=[...new Set((document.getElementById('targetNum').value.match(/\d+/g)||[]).map(Number).filter(n=>Number.isSafeInteger(n)&&n>=min&&n<=max))],q=Math.max(1,parseInt(document.getElementById('addQty').value)||1);nums.forEach(n=>{weights.set(n,weightOf(n)+q);disabled.delete(n)});drawWheel()};
-document.getElementById('resetWeights').onclick=()=>{weights.clear();drawWheel()};
-document.getElementById('resetAll').onclick=()=>{weights.clear();disabled.clear();history=[];document.getElementById('center').textContent='?';document.getElementById('result').textContent='準備開始';renderHistory();drawWheel()};
-document.getElementById('clearHistory').onclick=()=>{history=[];renderHistory()};spinBtn.onclick=spin;
-document.getElementById('rangeMin').addEventListener('change',()=>{getRange();drawWheel()});document.getElementById('rangeMax').addEventListener('change',()=>{getRange();drawWheel()});document.getElementById('excludeNums').addEventListener('input',drawWheel);
-document.getElementById('drawCount').addEventListener('change',()=>document.getElementById('drawCount').value=Math.max(1,Math.floor(parseInt(document.getElementById('drawCount').value)||1)));
-drawWheel();
-document.getElementById('resetWheel')?.addEventListener('click',()=>{angle=0;document.getElementById('center').textContent='?';document.getElementById('result').textContent='準備開始';drawWheel()});
-document.getElementById('showList')?.addEventListener('click',()=>{const g=document.getElementById('numberGrid');g.classList.toggle('show');document.getElementById('showList').textContent=g.classList.contains('show')?'☷　隱藏名單':'☷　完整名單'});
-document.getElementById('clearHistoryTop')?.addEventListener('click',()=>{history=[];renderHistory()});
-</script>
 <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -177,7 +106,7 @@ input:focus{border-color:#78c8bf;box-shadow:0 0 0 3px #9edbd355}
     <div style="display:flex;align-items:center;gap:6px">
       <input id="rangeMin" type="number" min="1" value="1" style="width:65px">
       <span>～</span>
-      <input id="rangeMax" type="number" min="1" value="46" style="width:65px">
+      <input id="rangeMax" type="number" min="1" value="100" style="width:65px">
     </div>
   </div>
   <div class="row">
@@ -225,5 +154,77 @@ input:focus{border-color:#78c8bf;box-shadow:0 0 0 3px #9edbd355}
 </div>
 
 
-<div class="win-overlay" id="winOverlay" aria-hidden="true"><div class="win-box"><div class="confetti"></div><div class="win-label">抽中！</div><div class="win-number" id="winNumber">23</div></div></div></body>
+<div class="win-overlay" id="winOverlay" aria-hidden="true"><div class="win-box"><div class="confetti"></div><div class="win-label">抽中！</div><div class="win-number" id="winNumber">23</div></div></div><script>
+let weights=new Map(), disabled=new Set(), history=[], spinning=false, angle=0;
+const canvas=document.getElementById('wheel'),ctx=canvas.getContext('2d'),spinBtn=document.getElementById('spinBtn');
+
+function getRange(){
+ let min=parseInt(document.getElementById('rangeMin').value)||1,max=parseInt(document.getElementById('rangeMax').value)||100;
+ min=Math.max(1,Math.floor(min));max=Math.max(1,Math.floor(max));if(min>max)[min,max]=[max,min];
+ document.getElementById('rangeMin').value=min;document.getElementById('rangeMax').value=max;return{min,max};
+}
+function getExcluded(){return new Set((document.getElementById('excludeNums').value.match(/\d+/g)||[]).map(Number).filter(Number.isSafeInteger).filter(n=>n>=1));}
+function weightOf(n){return weights.get(n)||1}
+function activeEntries(){
+ const{min,max}=getRange(),ex=getExcluded(),a=[];
+ if(max-min+1>200000)return a;
+ for(let n=min;n<=max;n++){if(!disabled.has(n)&&!ex.has(n)){for(let k=0;k<Math.min(weightOf(n),1000);k++)a.push(n)}if(n===Number.MAX_SAFE_INTEGER)break}
+ return a;
+}
+function drawWheel(){
+ const entries=activeEntries();ctx.clearRect(0,0,700,700);
+ if(!entries.length){ctx.beginPath();ctx.arc(350,350,315,0,Math.PI*2);ctx.fillStyle="#eceff1";ctx.fill();ctx.fillStyle="#78909c";ctx.font="bold 30px sans-serif";ctx.textAlign="center";ctx.fillText("號碼範圍很大／沒有可顯示的號碼",350,360);updateStatus();return}
+ const r=315,cx=350,cy=350,step=Math.PI*2/entries.length,palette=["#fffaf0","#f6c9c9","#ffe16a","#a8d7cd"];
+ ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
+ for(let i=0;i<entries.length;i++){const a0=i*step,a1=(i+1)*step;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r,a0,a1);ctx.closePath();ctx.fillStyle=palette[i%4];ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();ctx.save();ctx.rotate((a0+a1)/2);ctx.textAlign="right";ctx.fillStyle="#263238";const fs=entries.length>70?15:entries.length>45?18:22;ctx.font=`900 ${fs}px sans-serif`;ctx.fillText(entries[i],r-14,fs/3);ctx.restore()}
+ ctx.restore();ctx.beginPath();ctx.arc(cx,cy,315,0,Math.PI*2);ctx.strokeStyle="#3949ab";ctx.lineWidth=7;ctx.stroke();updateStatus();
+}
+function updateStatus(){
+ const{min,max}=getRange(),ex=getExcluded(),span=max-min+1;let unique=span,total=span;
+ for(const n of disabled)if(n>=min&&n<=max)unique--;
+ for(const n of ex)if(n>=min&&n<=max)unique--;
+ if(span<=200000){total=0;for(let n=min;n<=max;n++){if(!disabled.has(n)&&!ex.has(n))total+=Math.min(weightOf(n),1000);if(n===Number.MAX_SAFE_INTEGER)break}}
+ document.getElementById('status').innerHTML=`範圍 <b>${min}～${max}</b>｜剩餘 <b>${Math.max(0,unique)}</b> 個不同號碼｜轉盤籤數 <b>${total}</b>`;
+ renderGrid();
+}
+function renderGrid(){
+ const g=document.getElementById('numberGrid');g.innerHTML='';const{min,max}=getRange();
+ if(max-min+1>5000){g.innerHTML='<div class="small">範圍超過 5000 號，完整名單不展開，但仍可正常抽籤。</div>';return}
+ for(let i=min;i<=max;i++){const d=document.createElement('div');d.className='num'+(disabled.has(i)?' used':'')+(weightOf(i)>1&&!disabled.has(i)?' multi':'');d.textContent=disabled.has(i)?`${i} ✓`:`${i}${weightOf(i)>1?' ×'+weightOf(i):''}`;g.appendChild(d)}
+}
+function pickOne(){
+ const{min,max}=getRange(),ex=getExcluded(),span=max-min+1;
+ if(span<=200000){
+  const pool=[];for(let n=min;n<=max;n++){if(!disabled.has(n)&&!ex.has(n))for(let k=0;k<Math.min(weightOf(n),1000);k++)pool.push(n);if(n===Number.MAX_SAFE_INTEGER)break}
+  return pool.length?pool[Math.floor(Math.random()*pool.length)]:null;
+ }
+ for(let i=0;i<10000;i++){const n=Math.floor(Math.random()*span)+min;if(!disabled.has(n)&&!ex.has(n))return n}
+ return null;
+}
+function spin(){
+ if(spinning)return;const count=Math.max(1,Math.floor(parseInt(document.getElementById('drawCount').value)||1));const{min,max}=getRange(),ex=getExcluded();let unique=max-min+1;
+ for(const n of disabled)if(n>=min&&n<=max)unique--;for(const n of ex)if(n>=min&&n<=max)unique--;
+ if(unique<=0){alert('已經沒有可抽的號碼，請重置。');return}
+ if(document.getElementById('removeDrawn').checked&&count>unique){alert(`目前只剩 ${unique} 個不同號碼，無法一次抽 ${count} 個。`);return}
+ spinning=true;spinBtn.disabled=true;const picks=[];
+ for(let k=0;k<count;k++){const n=pickOne();if(n===null)break;picks.push(n);if(document.getElementById('removeDrawn').checked)disabled.add(n)}
+ if(!picks.length){spinning=false;spinBtn.disabled=false;return}
+ const visual=activeEntries(),vc=Math.max(1,visual.length),ti=Math.floor(Math.random()*vc),step=Math.PI*2/vc,desired=-Math.PI/2-(ti+.5)*step;let delta=desired-angle;while(delta<0)delta+=Math.PI*2;delta+=Math.PI*2*(5+Math.random()*3);
+ const st=angle,en=angle+delta,dur=2600,t0=performance.now();
+ function anim(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,4);angle=st+(en-st)*e;drawWheel();if(p<1)requestAnimationFrame(anim);else{spinning=false;spinBtn.disabled=false;document.getElementById('center').textContent=picks[0];document.getElementById('result').textContent=picks.join('　→　');document.getElementById('winNumber').textContent=picks.join('、');const o=document.getElementById('winOverlay');o.classList.add('show');setTimeout(()=>o.classList.remove('show'),1800);history.unshift(picks);renderHistory();drawWheel()}}
+ requestAnimationFrame(anim);
+}
+function renderHistory(){const h=document.getElementById('history');h.innerHTML=history.length?history.map((x,i)=>`<div class="history-item"><b>第 ${history.length-i} 次</b>　${x.join('、')}</div>`).join(''):'<div class="small">尚無紀錄</div>'}
+document.getElementById('addBtn').onclick=()=>{const{min,max}=getRange(),nums=[...new Set((document.getElementById('targetNum').value.match(/\d+/g)||[]).map(Number).filter(n=>Number.isSafeInteger(n)&&n>=min&&n<=max))],q=Math.max(1,parseInt(document.getElementById('addQty').value)||1);nums.forEach(n=>{weights.set(n,weightOf(n)+q);disabled.delete(n)});drawWheel()};
+document.getElementById('resetWeights').onclick=()=>{weights.clear();drawWheel()};
+document.getElementById('resetAll').onclick=()=>{weights.clear();disabled.clear();history=[];document.getElementById('center').textContent='?';document.getElementById('result').textContent='準備開始';renderHistory();drawWheel()};
+document.getElementById('clearHistory').onclick=()=>{history=[];renderHistory()};spinBtn.onclick=spin;
+document.getElementById('rangeMin').addEventListener('change',()=>{getRange();drawWheel()});document.getElementById('rangeMax').addEventListener('change',()=>{getRange();drawWheel()});document.getElementById('excludeNums').addEventListener('input',drawWheel);
+document.getElementById('drawCount').addEventListener('change',()=>document.getElementById('drawCount').value=Math.max(1,Math.floor(parseInt(document.getElementById('drawCount').value)||1)));
+drawWheel();
+document.getElementById('resetWheel')?.addEventListener('click',()=>{angle=0;document.getElementById('center').textContent='?';document.getElementById('result').textContent='準備開始';drawWheel()});
+document.getElementById('showList')?.addEventListener('click',()=>{const g=document.getElementById('numberGrid');g.classList.toggle('show');document.getElementById('showList').textContent=g.classList.contains('show')?'☷　隱藏名單':'☷　完整名單'});
+document.getElementById('clearHistoryTop')?.addEventListener('click',()=>{history=[];renderHistory()});
+</script>
+</body>
 </html>
