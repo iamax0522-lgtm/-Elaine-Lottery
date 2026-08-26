@@ -106,9 +106,9 @@ input:focus{border-color:#78c8bf;box-shadow:0 0 0 3px #9edbd355}
   <div class="row">
     <label>號碼範圍</label>
     <div style="display:flex;align-items:center;gap:6px">
-      <input id="rangeMin" type="number" min="1" max="46" value="1" style="width:65px">
+      <input id="rangeMin" type="number" min="1" value="1" style="width:65px">
       <span>～</span>
-      <input id="rangeMax" type="number" min="1" max="46" value="46" style="width:65px">
+      <input id="rangeMax" type="number" min="1" value="46" style="width:65px">
     </div>
   </div>
   <div class="row">
@@ -118,7 +118,7 @@ input:focus{border-color:#78c8bf;box-shadow:0 0 0 3px #9edbd355}
   <div class="small" style="margin:-5px 0 12px">輸入要剔除的號碼，用逗號、空白或頓號分隔，例如：3, 8, 15</div>
   <div class="row">
     <label>一次抽幾個</label>
-    <input id="drawCount" type="number" min="1" max="46" value="1">
+    <input id="drawCount" type="number" min="1" value="1">
   </div>
   <div class="toggle">
     <input id="removeDrawn" type="checkbox" checked>
@@ -178,7 +178,7 @@ function getRange(){
 }
 function getExcluded(){
   const raw=document.getElementById('excludeNums').value;
-  return new Set((raw.match(/\d+/g)||[]).map(Number).filter(n=>n>=1&&n<=46));
+  return new Set((raw.match(/\d+/g)||[]).map(Number).filter(n=>n>=1&&n<=N));
 }
 function activeEntries(){
   const {min,max}=getRange();
